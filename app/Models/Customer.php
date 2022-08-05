@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Customer extends Model
 {
@@ -19,4 +20,14 @@ class Customer extends Model
         'email',
         'phone_no',
     ];
+
+     /**
+     * A customer has many addresses.
+     *
+     * @return HasMany the attached addresses
+     */
+    public function customerAddresses() : HasMany
+    {
+        return $this->hasMany(CustomerAddress::class);
+    }
 }

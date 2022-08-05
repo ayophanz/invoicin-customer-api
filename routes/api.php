@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\CustomerAddressController;
 
 /*
 |--------------------------------------------------------------------------
@@ -19,11 +20,17 @@ use App\Http\Controllers\CustomerController;
 //     return $request->user();
 // });
 
-Route::group(['middleware' => ['auth']], function () {
+Route::group(['prefix' => 'customers', 'middleware' => ['auth']], function () {
     Route::controller(CustomerController::class)->group( function () {
-        Route::get('customers', 'index');
-        Route::post('customers/store', 'store');
-        Route::put('customers/update/{id}', 'update');
-        Route::delete('customers/destroy/{id}', 'destroy');
+        Route::get('', 'index');
+        Route::post('store', 'store');
+        Route::put('update/{id}', 'update');
+        Route::delete('destroy/{id}', 'destroy');
+    });
+    Route::controller(CustomerAddressontroller::class)->group( function () {
+        Route::get('addresses', 'index');
+        Route::post('addresses/store', 'store');
+        Route::put('addresses/update/{id}', 'update');
+        Route::delete('addresses/destroy/{id}', 'destroy');
     });
 });

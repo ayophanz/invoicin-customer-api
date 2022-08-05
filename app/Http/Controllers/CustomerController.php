@@ -35,7 +35,9 @@ class CustomerController extends Controller
             $this->transformer->transformCollection(
                 $customers->transform(function ($item, $key) {
                     return $item;
-                })->all(), Response::HTTP_OK)
+                })->all(),
+                Response::HTTP_OK 
+            )
         );
     }
 
@@ -70,7 +72,7 @@ class CustomerController extends Controller
             $toValidate['company_name'] = 'required';
         }
         $validator = Validator::make($request->all(), $toValidate);
-        if ($validator->fails()) { 
+        if ($validator->fails()) {
             return $validator->errors()->toJson();
         }
 

@@ -3,8 +3,14 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\CustomerAddress;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Validator;
 use App\Transformers\CustomerAddressTransformer;
+use App\Traits\ApiResponser;
+use App\Models\Customer;
+use App\Models\CustomerAddress;
+use App\Models\CustomerAddressType;
+use App\Models\Country;
 use Auth;
 
 class CustomerAddressController extends Controller
@@ -14,7 +20,7 @@ class CustomerAddressController extends Controller
     protected $transformer;
     protected $auth;
 
-    public function __construct(CustomerAddressTransformer $transformer)
+    public function __construct(CustomerAddress $transformer)
     {
         $this->transformer = $transformer;
         $this->auth = Auth::user();
@@ -46,9 +52,31 @@ class CustomerAddressController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
      */
-    public function store(Request $request)
+    public function store(Request $request, $id)
     {
-        //
+        /** Validation here */
+        $toValidate = [
+            'address_type_id' => 'required|numeric',
+            'country_id'      => 'required|numeric',
+            'address'         => 'required|string',
+        ];
+        $validator = Validator::make($request->all(), $toValidate);
+        if ($validator->fails()) {
+            return $validator->errors()->toJson();
+        }
+
+        /** Save here */
+        $customer            = Customer::find($id);
+        $customerAddressType = CustomerAddressType::find($request->address_type_id);
+        $country             = Country::find($request->country_id);
+        $customerAddress     = new CustomerAddress();
+        $customerAddress->customer()->associate($customer);
+        $customerAddress->customerAddressType()->associate($customerAddressType);
+        $customerAddress->address = $request->address;
+        $customerAddress->country()->associate($country);
+        $customerAddress->save();
+
+        return $this->successResponse($this->transformer->transform($customerAddress), Response::HTTP_CREATED);
     }
 
     /**
@@ -82,7 +110,29 @@ class CustomerAddressController extends Controller
      */
     public function update(Request $request, $id)
     {
-        //
+        /** Validation here */
+        $toValidate = [
+            'address_type_id' => 'required|numeric',
+            'country_id'      => 'required|numeric',
+            'address'         => 'required|string',
+        ];
+        $validator = Validator::make($request->all(), $toValidate);
+        if ($validator->fails()) {
+            return $validator->errors()->toJson();
+        }
+        
+        /** Update here */
+        $customer            = Customer::find($id);
+        $customerAddressType = CustomerAddressType::find($request->address_type_id);
+        $country             = Country::find($request->country_id);
+        $customerAddress     = new CustomerAddress();
+        $customerAddress->customer()->associate($customer);
+        $customerAddress->customerAddressType()->associate($customerAddressType);
+        $customerAddress->address = $request->address;
+        $customerAddress->country()->associate($country);
+        $customerAddress->save();
+
+        return $this->successResponse($this->transformer->transform($customerAddress), Response::HTTP_OK);
     }
 
     /**
@@ -91,8 +141,13 @@ class CustomerAddressController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
-        //
+        $customerAddress = CustomerAddress::where('customer_id', $id)->where('customer_address_type_id', $request->address_type_id)->first();
+        if (!is_null($customerAddress)) {
+            $customerAddress->delete();
+            return $this->successResponse(['Destroy' => 'Success'], Response::HTTP_OK);
+        }
+        return $this->errorResponse(['Destroy' => 'Fail'], Response::HTTP_NOT_FOUND);
     }
 }
