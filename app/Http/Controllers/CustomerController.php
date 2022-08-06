@@ -73,23 +73,27 @@ class CustomerController extends Controller
         }
         $validator = Validator::make($request->all(), $toValidate);
         if ($validator->fails()) {
-            return $validator->errors()->toJson();
+            return $this->errorResponse($validator->errors(), Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        /** Save here */
-        $customer                  = new Customer();
-        $customer->type            = $request->type;
-        $customer->organization_id = $this->auth->organization_id;
-        $customer->email           = $request->email;
-        $customer->phone_no        = $request->phone_no;
-        if ($request->type == 'individual') {
-            $customer->first_name = $request->first_name;
-            $customer->last_name  = $request->last_name;
+        try {
+            /** Save here */
+            $customer                  = new Customer();
+            $customer->type            = $request->type;
+            $customer->organization_id = $this->auth->organization_id;
+            $customer->email           = $request->email;
+            $customer->phone_no        = $request->phone_no;
+            if ($request->type == 'individual') {
+                $customer->first_name = $request->first_name;
+                $customer->last_name  = $request->last_name;
+            }
+            if ($request->type == 'company') {
+                $customer->company_name = $request->company_name;
+            }
+            $customer->save();
+        } catch(\Exception $e) {
+            return $this->errorResponse(['Error' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-        if ($request->type == 'company') {
-            $customer->company_name = $request->company_name;
-        }
-        $customer->save();
 
         return $this->successResponse($this->transformer->transform($customer), Response::HTTP_CREATED);
     }
@@ -100,9 +104,14 @@ class CustomerController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function show($id)
+    public function show(Request $request, $id)
     {
-        //
+        $customer = Customer::where('id', $id)->where('organization_id', $this->auth->organization_id)->first();
+        if (!is_null($customer)) {
+            return $this->successResponse($this->transformer->transform($customer), Response::HTTP_OK);
+        }
+
+        return $this->errorResponse(['Status' => 'Not Found'], Response::HTTP_NOT_FOUND);
     }
 
     /**
@@ -139,22 +148,26 @@ class CustomerController extends Controller
         }
         $validator = Validator::make($request->all(), $toValidate);
         if ($validator->fails()) {
-            return $validator->errors()->toJson();
+            return $this->errorResponse($validator->errors(), Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        /** Update here */
-        $customer        = Customer::where('id', $id)->where('organization_id', $this->auth->organization_id)->first();
-        $customer->type  = $request->type;
-        $customer->email = $request->email;
-        $customer->phone_no = $request->phone_no;
-        if ($request->type == 'individual') {
-            $customer->first_name = $request->first_name;
-            $customer->last_name  = $request->last_name;
+        try {
+            /** Update here */
+            $customer = Customer::where('id', $id)->where('organization_id', $this->auth->organization_id)->first();
+            $customer->type     = $request->type;
+            $customer->email    = $request->email;
+            $customer->phone_no = $request->phone_no;
+            if ($request->type == 'individual') {
+                $customer->first_name = $request->first_name;
+                $customer->last_name  = $request->last_name;
+            }
+            if ($request->type == 'company') {
+                $customer->company_name = $request->company_name;
+            }
+            $customer->save();
+        } catch(\Exception $e) {
+            return $this->errorResponse(['Error' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-        if ($request->type == 'company') {
-            $customer->company_name = $request->company_name;
-        }
-        $customer->save();
 
         return $this->successResponse($this->transformer->transform($customer), Response::HTTP_OK);
     }
@@ -170,8 +183,8 @@ class CustomerController extends Controller
         $customer = Customer::where('id', $id)->where('organization_id', $this->auth->organization_id)->first();
         if (!is_null($customer)) {
             $customer->delete();
-            return $this->successResponse(['Destroy' => 'Success'], Response::HTTP_OK);
+            return $this->successResponse(['Status' => 'Ok'], Response::HTTP_OK);
         }
-        return $this->errorResponse(['Destroy' => 'Fail'], Response::HTTP_NOT_FOUND);
+        return $this->errorResponse(['Status' => 'Not Found'], Response::HTTP_NOT_FOUND);
     }
 }

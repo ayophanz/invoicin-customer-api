@@ -14,11 +14,11 @@ class CustomerAddressTransformer extends BaseTransformer
     public function transform($item, $method = 'index') : array
     {
         return [
-            'id'                       => $item->id,
-            'customer_id'              => $item->customer_id,
-            'customer_address_type_id' => $item->customer_address_type_id,
-            'country_id'               => $item->country_id,
-            'address'                  => $item->address,
+            'id'                    => $item->id,
+            'customer_id'           => $item->customer_id,
+            'customer_address_type' => $item->customerAddressType ? (array) $this->relationTransformer($item->customerAddressType, new CustomerAddressTypeTransformer) : [],
+            'country'               => $item->country ? (array) $this->relationTransformer($item->country, new CountryTransformer) : [],
+            'address'               => $item->address,
         ];
     }
 }

@@ -5,19 +5,17 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Validator;
-use App\Transformers\CustomerAddressTransformer;
 use App\Traits\ApiResponser;
 use App\Models\Customer;
-use App\Models\Country;
-use Auth;
+use App\Transformers\CustomerSettingTransformer;
 
-class CustomerAddressController extends Controller
+class CustomerSettingController extends Controller
 {
     use ApiResponser;
 
     protected $transformer;
 
-    public function __construct(CustomerAddressTransformer $transformer)
+    public function __construct(CustomerSettingTransformer $transformer)
     {
         $this->transformer = $transformer;
     }
@@ -29,12 +27,11 @@ class CustomerAddressController extends Controller
      */
     public function index(Request $request, $id)
     {
-        
-        $customer  = Customer::find($id);
-        $addresses = $customer->customerAddresses()->get();
+        $customer = Customer::find($id);
+        $settings = $customer->settings()->get();
         return $this->successResponse(
             $this->transformer->transformCollection(
-                $addresses->transform(function ($item, $key) {
+                $settings->transform(function ($item, $key) {
                     return $item;
                 })->all(),
                 Response::HTTP_OK 
@@ -62,29 +59,27 @@ class CustomerAddressController extends Controller
     {
         /** Validation here */
         $toValidate = [
-            'customer_address_type_id' => 'required|numeric|unique:customer_addresses,customer_address_type_id,' . $request->customer_address_type_id . ',id,customer_id,' . $id,
-            'country_id'               => 'required|numeric',
-            'address'                  => 'required|string',
+            'key'   => 'required|unique:customer_settings,key,' . $request->key . ',id,sourceable_type,App\Models\Customer,sourceable_id,' . $id,
+            'value' => 'required',
         ];
         $validator = Validator::make($request->all(), $toValidate);
         if ($validator->fails()) {
             return $this->errorResponse($validator->errors(), Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        $address = [];
+        $setting = [];
         try {
             /** Save here */
             $customer = Customer::find($id);
-            $address  = $customer->customerAddresses()->create([
-                'customer_address_type_id' => $request->customer_address_type_id,
-                'country_id'               => $request->country_id,
-                'address'                  => $request->address,
+            $setting = $customer->settings()->create([
+                'key'   => $request->key,
+                'value' => $request->value,
             ]);
         } catch(\Exception $e) {
             return $this->errorResponse(['Error' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
 
-        return $this->successResponse($this->transformer->transform($address), Response::HTTP_CREATED);
+        return $this->successResponse($this->transformer->transform($setting), Response::HTTP_OK);
     }
 
     /**
@@ -93,14 +88,9 @@ class CustomerAddressController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function show(Request $request, $id)
+    public function show($id)
     {
-        $customerAddress = CustomerAddress::where('customer_id', $id)->where('customer_address_type_id', $request->customer_address_type_id)->first();
-        if (!is_null($customerAddress)) {
-            return $this->successResponse($this->transformer->transform($customerAddress), Response::HTTP_OK);
-        }
-
-        return $this->errorResponse(['Status' => 'Not Found'], Response::HTTP_NOT_FOUND);
+        //
     }
 
     /**
@@ -125,29 +115,27 @@ class CustomerAddressController extends Controller
     {
         /** Validation here */
         $toValidate = [
-            'customer_address_type_id' => 'required|numeric|unique:customer_addresses,customer_address_type_id,' . $request->customer_address_type_id . ',id,customer_id,' . $id,
-            'country_id'               => 'required|numeric',
-            'address'                  => 'required|string',
+            'key'   => 'required',
+            'value' => 'required',
         ];
         $validator = Validator::make($request->all(), $toValidate);
         if ($validator->fails()) {
             return $this->errorResponse($validator->errors(), Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        $address = [];
+        $setting = [];
         try {
             /** Update here */
             $customer = Customer::find($id);
-            $address  = tap($customer->customerAddresses()->where('customer_address_type_id', $request->customer_address_type_id))
-                ->update([
-                    'address' => $request->address,
-                    'country_id' => $request->country_id,
-                ])->first();
+            $setting = $customer->settings()->updateOrCreate(
+                ['key' => $request->key],
+                ['value' => $request->value],
+            );
         } catch(\Exception $e) {
             return $this->errorResponse(['Error' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
 
-        return $this->successResponse($this->transformer->transform($address), Response::HTTP_OK);
+        return $this->successResponse($this->transformer->transform($setting), Response::HTTP_OK);
     }
 
     /**
@@ -159,9 +147,9 @@ class CustomerAddressController extends Controller
     public function destroy(Request $request, $id)
     {
         $customer = Customer::find($id);
-        $address  = $customer->customerAddresses()->where('customer_address_type_id', $request->customer_address_type_id)->first();
-        if (!is_null($address)) {
-            $address->delete();
+        $setting = $customer->settings()->where('key', $request->key)->first();
+        if (!is_null($setting)) {
+            $setting->delete();
             return $this->successResponse(['Status' => 'Ok'], Response::HTTP_OK);
         }
         return $this->errorResponse(['Status' => 'Not Found'], Response::HTTP_NOT_FOUND);

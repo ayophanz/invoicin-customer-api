@@ -30,4 +30,14 @@ class Customer extends Model
     {
         return $this->hasMany(CustomerAddress::class);
     }
+
+    /**
+     * An customer has many customer settings.
+     *
+     * @return morphToMany The attached customer settings.
+     */
+    public function settings()
+    {
+        return $this->morphMany(CustomerSetting::class, 'sourceable'); 
+    }
 }
