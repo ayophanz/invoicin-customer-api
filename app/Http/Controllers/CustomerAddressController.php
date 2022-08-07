@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use App\Transformers\CustomerAddressTransformer;
 use App\Traits\ApiResponser;
 use App\Models\Customer;
@@ -16,10 +17,12 @@ class CustomerAddressController extends Controller
     use ApiResponser;
 
     protected $transformer;
+    protected $auth;
 
     public function __construct(CustomerAddressTransformer $transformer)
     {
         $this->transformer = $transformer;
+        $this->auth = Auth::user();
     }
 
     /**
@@ -29,8 +32,7 @@ class CustomerAddressController extends Controller
      */
     public function index(Request $request, $id)
     {
-        
-        $customer  = Customer::find($id);
+        $customer  = Customer::where('id', $id)->where('organization_id', $this->auth->organization_id)->first();
         $addresses = $customer->customerAddresses()->get();
         return $this->successResponse(
             $this->transformer->transformCollection(
@@ -62,9 +64,16 @@ class CustomerAddressController extends Controller
     {
         /** Validation here */
         $toValidate = [
-            'customer_address_type_id' => 'required|numeric|unique:customer_addresses,customer_address_type_id,' . $request->customer_address_type_id . ',id,customer_id,' . $id,
             'country_id'               => 'required|numeric',
             'address'                  => 'required|string',
+            'customer_address_type_id' => [
+                'required',
+                'numeric',
+                Rule::unique('customer_addresses')
+                    ->using(function ($q) use($id) { 
+                        $q->where('customer_id', $id); 
+                    })
+            ],
         ];
         $validator = Validator::make($request->all(), $toValidate);
         if ($validator->fails()) {
@@ -74,7 +83,7 @@ class CustomerAddressController extends Controller
         $address = [];
         try {
             /** Save here */
-            $customer = Customer::find($id);
+            $customer = Customer::where('id', $id)->where('organization_id', $this->auth->organization_id)->first();
             $address  = $customer->customerAddresses()->create([
                 'customer_address_type_id' => $request->customer_address_type_id,
                 'country_id'               => $request->country_id,
@@ -95,9 +104,10 @@ class CustomerAddressController extends Controller
      */
     public function show(Request $request, $id)
     {
-        $customerAddress = CustomerAddress::where('customer_id', $id)->where('customer_address_type_id', $request->customer_address_type_id)->first();
-        if (!is_null($customerAddress)) {
-            return $this->successResponse($this->transformer->transform($customerAddress), Response::HTTP_OK);
+        $customer = Customer::where('id', $id)->where('organization_id', $this->auth->organization_id)->first();
+        $address  = $customer->customerAddresses()->where('customer_address_type_id', $request->customer_address_type_id)->first();
+        if (!is_null($address)) {
+            return $this->successResponse($this->transformer->transform($address), Response::HTTP_OK);
         }
 
         return $this->errorResponse(['Status' => 'Not Found'], Response::HTTP_NOT_FOUND);
@@ -125,9 +135,17 @@ class CustomerAddressController extends Controller
     {
         /** Validation here */
         $toValidate = [
-            'customer_address_type_id' => 'required|numeric|unique:customer_addresses,customer_address_type_id,' . $request->customer_address_type_id . ',id,customer_id,' . $id,
             'country_id'               => 'required|numeric',
             'address'                  => 'required|string',
+            'customer_address_type_id' => [
+                    'required',
+                    'numeric',
+                    Rule::unique('customer_addresses')
+                        ->using(function ($q) use($id) { 
+                            $q->where('customer_id', $id); 
+                        })->ignore($request->customer_address_type_id, 'customer_address_type_id')
+            ],
+            
         ];
         $validator = Validator::make($request->all(), $toValidate);
         if ($validator->fails()) {
@@ -137,10 +155,10 @@ class CustomerAddressController extends Controller
         $address = [];
         try {
             /** Update here */
-            $customer = Customer::find($id);
+            $customer = Customer::where('id', $id)->where('organization_id', $this->auth->organization_id)->first();
             $address  = tap($customer->customerAddresses()->where('customer_address_type_id', $request->customer_address_type_id))
                 ->update([
-                    'address' => $request->address,
+                    'address'    => $request->address,
                     'country_id' => $request->country_id,
                 ])->first();
         } catch(\Exception $e) {
@@ -158,7 +176,7 @@ class CustomerAddressController extends Controller
      */
     public function destroy(Request $request, $id)
     {
-        $customer = Customer::find($id);
+        $customer = Customer::where('id', $id)->where('organization_id', $this->auth->organization_id)->first();
         $address  = $customer->customerAddresses()->where('customer_address_type_id', $request->customer_address_type_id)->first();
         if (!is_null($address)) {
             $address->delete();

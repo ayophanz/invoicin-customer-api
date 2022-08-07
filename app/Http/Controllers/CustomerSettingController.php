@@ -5,19 +5,23 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use App\Traits\ApiResponser;
 use App\Models\Customer;
 use App\Transformers\CustomerSettingTransformer;
+use Auth;
 
 class CustomerSettingController extends Controller
 {
     use ApiResponser;
 
     protected $transformer;
+    protected $auth;
 
     public function __construct(CustomerSettingTransformer $transformer)
     {
         $this->transformer = $transformer;
+        $this->auth = Auth::user();
     }
 
     /**
@@ -27,7 +31,7 @@ class CustomerSettingController extends Controller
      */
     public function index(Request $request, $id)
     {
-        $customer = Customer::find($id);
+        $customer = Customer::where('id', $id)->where('organization_id', $this->auth->organization_id)->first();
         $settings = $customer->settings()->get();
         return $this->successResponse(
             $this->transformer->transformCollection(
@@ -59,8 +63,14 @@ class CustomerSettingController extends Controller
     {
         /** Validation here */
         $toValidate = [
-            'key'   => 'required|unique:customer_settings,key,' . $request->key . ',id,sourceable_type,App\Models\Customer,sourceable_id,' . $id,
             'value' => 'required',
+            'key'   => [
+                'required',
+                Rule::unique('customer_settings')
+                    ->using(function ($q) use($id) { 
+                        $q->where('sourceable_id', $id)->where('sourceable_type', 'App\Models\Customer'); 
+                    })
+            ],
         ];
         $validator = Validator::make($request->all(), $toValidate);
         if ($validator->fails()) {
@@ -70,8 +80,8 @@ class CustomerSettingController extends Controller
         $setting = [];
         try {
             /** Save here */
-            $customer = Customer::find($id);
-            $setting = $customer->settings()->create([
+            $customer = Customer::where('id', $id)->where('organization_id', $this->auth->organization_id)->first();
+            $setting  = $customer->settings()->create([
                 'key'   => $request->key,
                 'value' => $request->value,
             ]);
@@ -126,11 +136,10 @@ class CustomerSettingController extends Controller
         $setting = [];
         try {
             /** Update here */
-            $customer = Customer::find($id);
-            $setting = $customer->settings()->updateOrCreate(
-                ['key' => $request->key],
-                ['value' => $request->value],
-            );
+            $customer = Customer::where('id', $id)->where('organization_id', $this->auth->organization_id)->first();
+            $setting  = tap($customer->settings()->where('key', $request->key))->update([
+                'value' => $request->value
+            ])->first();
         } catch(\Exception $e) {
             return $this->errorResponse(['Error' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
@@ -146,8 +155,8 @@ class CustomerSettingController extends Controller
      */
     public function destroy(Request $request, $id)
     {
-        $customer = Customer::find($id);
-        $setting = $customer->settings()->where('key', $request->key)->first();
+        $customer = Customer::where('id', $id)->where('organization_id', $this->auth->organization_id)->first();
+        $setting  = $customer->settings()->where('key', $request->key)->first();
         if (!is_null($setting)) {
             $setting->delete();
             return $this->successResponse(['Status' => 'Ok'], Response::HTTP_OK);

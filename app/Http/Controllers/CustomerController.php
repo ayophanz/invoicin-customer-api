@@ -61,8 +61,8 @@ class CustomerController extends Controller
     {
         /** Validation here */
         $toValidate = [
-            'type'            => 'required',
-            'email'           => 'required|max:255|email|unique:customers'
+            'type'  => 'required',
+            'email' => 'required|max:255|email|unique:customers'
         ];
         if ($request->type == 'individual') {
             $toValidate['first_name'] = 'required';
@@ -136,8 +136,8 @@ class CustomerController extends Controller
     {
         /** Validation here */
         $toValidate = [
-            'type'            => 'required',
-            'email'           => 'required|max:255|string|email|unique:customers,email,'.$id
+            'type'  => 'required',
+            'email' => 'required|max:255|string|email|unique:customers,email,'.$id
         ];
         if ($request->type == 'individual') {
             $toValidate['first_name'] = 'required';
@@ -153,7 +153,7 @@ class CustomerController extends Controller
 
         try {
             /** Update here */
-            $customer = Customer::where('id', $id)->where('organization_id', $this->auth->organization_id)->first();
+            $customer           = Customer::where('id', $id)->where('organization_id', $this->auth->organization_id)->first();
             $customer->type     = $request->type;
             $customer->email    = $request->email;
             $customer->phone_no = $request->phone_no;
