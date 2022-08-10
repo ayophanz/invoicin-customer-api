@@ -26,7 +26,7 @@ class Customer extends Model
      *
      * @return HasMany the attached addresses
      */
-    public function customerAddresses() : HasMany
+    public function addresses() : HasMany
     {
         return $this->hasMany(CustomerAddress::class);
     }

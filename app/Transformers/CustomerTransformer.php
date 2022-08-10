@@ -23,6 +23,8 @@ class CustomerTransformer extends BaseTransformer
             'company_name'    => $item->company_name,
             'email'           => $item->email,
             'phone_no'        => $item->phone_no,
+            'addresses'       => $item->addresses ? (array) $this->relationTransformer($item->addresses, new CustomerAddressTransformer) : [],
+            'settings'        => $item->settings ? (array) $this->relationTransformer($item->settings, new CustomerSettingTransformer) : [],
         ];
     }
 }

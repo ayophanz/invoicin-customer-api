@@ -30,18 +30,9 @@ class CustomerAddressController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function index(Request $request, $id)
+    public function index()
     {
-        $customer  = Customer::where('id', $id)->where('organization_id', $this->auth->organization_id)->first();
-        $addresses = $customer->customerAddresses()->get();
-        return $this->successResponse(
-            $this->transformer->transformCollection(
-                $addresses->transform(function ($item, $key) {
-                    return $item;
-                })->all(),
-                Response::HTTP_OK 
-            )
-        );
+        //
     }
 
     /**
@@ -76,24 +67,21 @@ class CustomerAddressController extends Controller
             ],
         ];
         $validator = Validator::make($request->all(), $toValidate);
-        if ($validator->fails()) {
-            return $this->errorResponse($validator->errors(), Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
+        if ($validator->fails()) return $this->errorResponse($validator->errors(), Response::HTTP_UNPROCESSABLE_ENTITY);
 
-        $address = [];
         try {
             /** Save here */
             $customer = Customer::where('id', $id)->where('organization_id', $this->auth->organization_id)->first();
-            $address  = $customer->customerAddresses()->create([
+            $address  = $customer->addresses()->create([
                 'customer_address_type_id' => $request->customer_address_type_id,
                 'country_id'               => $request->country_id,
                 'address'                  => $request->address,
             ]);
+
+            return $this->successResponse($this->transformer->transform($address), Response::HTTP_CREATED);
         } catch(\Exception $e) {
             return $this->errorResponse(['Error' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
-
-        return $this->successResponse($this->transformer->transform($address), Response::HTTP_CREATED);
+        }        
     }
 
     /**
@@ -104,13 +92,14 @@ class CustomerAddressController extends Controller
      */
     public function show(Request $request, $id)
     {
-        $customer = Customer::where('id', $id)->where('organization_id', $this->auth->organization_id)->first();
-        $address  = $customer->customerAddresses()->where('customer_address_type_id', $request->customer_address_type_id)->first();
-        if (!is_null($address)) {
-            return $this->successResponse($this->transformer->transform($address), Response::HTTP_OK);
-        }
+        try {
+            $customer = Customer::where('id', $id)->where('organization_id', $this->auth->organization_id)->first();
+            $address  = $customer->addresses()->where('customer_address_type_id', $request->customer_address_type_id)->first();
 
-        return $this->errorResponse(['Status' => 'Not Found'], Response::HTTP_NOT_FOUND);
+            return $this->successResponse($this->transformer->transform($address), Response::HTTP_OK);
+        } catch(\Exception $e) {
+            return $this->errorResponse(['Error' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
     /**
@@ -148,24 +137,21 @@ class CustomerAddressController extends Controller
             
         ];
         $validator = Validator::make($request->all(), $toValidate);
-        if ($validator->fails()) {
-            return $this->errorResponse($validator->errors(), Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
+        if ($validator->fails()) return $this->errorResponse($validator->errors(), Response::HTTP_UNPROCESSABLE_ENTITY);
 
-        $address = [];
         try {
             /** Update here */
             $customer = Customer::where('id', $id)->where('organization_id', $this->auth->organization_id)->first();
-            $address  = tap($customer->customerAddresses()->where('customer_address_type_id', $request->customer_address_type_id))
+            $address  = tap($customer->addresses()->where('customer_address_type_id', $request->customer_address_type_id))
                 ->update([
                     'address'    => $request->address,
                     'country_id' => $request->country_id,
                 ])->first();
+
+            return $this->successResponse($this->transformer->transform($address), Response::HTTP_OK);
         } catch(\Exception $e) {
             return $this->errorResponse(['Error' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-
-        return $this->successResponse($this->transformer->transform($address), Response::HTTP_OK);
     }
 
     /**
@@ -176,12 +162,13 @@ class CustomerAddressController extends Controller
      */
     public function destroy(Request $request, $id)
     {
-        $customer = Customer::where('id', $id)->where('organization_id', $this->auth->organization_id)->first();
-        $address  = $customer->customerAddresses()->where('customer_address_type_id', $request->customer_address_type_id)->first();
-        if (!is_null($address)) {
-            $address->delete();
-            return $this->successResponse(['Status' => 'Ok'], Response::HTTP_OK);
+        try {
+            $customer = Customer::where('id', $id)->where('organization_id', $this->auth->organization_id)->first();
+            $address  = $customer->addresses()->where('customer_address_type_id', $request->customer_address_type_id)->delete();
+            
+            return $this->successResponse(['Success' => $address ? true : false], Response::HTTP_OK);
+        } catch(\Exception $e) {
+            return $this->errorResponse(['Error' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-        return $this->errorResponse(['Status' => 'Not Found'], Response::HTTP_NOT_FOUND);
     }
 }

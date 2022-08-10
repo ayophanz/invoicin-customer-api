@@ -29,18 +29,9 @@ class CustomerSettingController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function index(Request $request, $id)
+    public function index()
     {
-        $customer = Customer::where('id', $id)->where('organization_id', $this->auth->organization_id)->first();
-        $settings = $customer->settings()->get();
-        return $this->successResponse(
-            $this->transformer->transformCollection(
-                $settings->transform(function ($item, $key) {
-                    return $item;
-                })->all(),
-                Response::HTTP_OK 
-            )
-        );
+        //
     }
 
     /**
@@ -73,11 +64,8 @@ class CustomerSettingController extends Controller
             ],
         ];
         $validator = Validator::make($request->all(), $toValidate);
-        if ($validator->fails()) {
-            return $this->errorResponse($validator->errors(), Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
+        if ($validator->fails()) return $this->errorResponse($validator->errors(), Response::HTTP_UNPROCESSABLE_ENTITY);
 
-        $setting = [];
         try {
             /** Save here */
             $customer = Customer::where('id', $id)->where('organization_id', $this->auth->organization_id)->first();
@@ -85,11 +73,11 @@ class CustomerSettingController extends Controller
                 'key'   => $request->key,
                 'value' => $request->value,
             ]);
+
+            return $this->successResponse($this->transformer->transform($setting), Response::HTTP_OK);
         } catch(\Exception $e) {
             return $this->errorResponse(['Error' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-
-        return $this->successResponse($this->transformer->transform($setting), Response::HTTP_OK);
     }
 
     /**
@@ -129,22 +117,19 @@ class CustomerSettingController extends Controller
             'value' => 'required',
         ];
         $validator = Validator::make($request->all(), $toValidate);
-        if ($validator->fails()) {
-            return $this->errorResponse($validator->errors(), Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
+        if ($validator->fails()) return $this->errorResponse($validator->errors(), Response::HTTP_UNPROCESSABLE_ENTITY);
 
-        $setting = [];
         try {
             /** Update here */
             $customer = Customer::where('id', $id)->where('organization_id', $this->auth->organization_id)->first();
             $setting  = tap($customer->settings()->where('key', $request->key))->update([
                 'value' => $request->value
             ])->first();
+
+            return $this->successResponse($this->transformer->transform($setting), Response::HTTP_OK);
         } catch(\Exception $e) {
             return $this->errorResponse(['Error' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-
-        return $this->successResponse($this->transformer->transform($setting), Response::HTTP_OK);
     }
 
     /**
@@ -155,12 +140,13 @@ class CustomerSettingController extends Controller
      */
     public function destroy(Request $request, $id)
     {
-        $customer = Customer::where('id', $id)->where('organization_id', $this->auth->organization_id)->first();
-        $setting  = $customer->settings()->where('key', $request->key)->first();
-        if (!is_null($setting)) {
-            $setting->delete();
-            return $this->successResponse(['Status' => 'Ok'], Response::HTTP_OK);
+        try {
+            $customer = Customer::where('id', $id)->where('organization_id', $this->auth->organization_id)->first();
+            $setting  = $customer->settings()->where('key', $request->key)->delete();
+
+            return $this->successResponse(['Success' => $setting ? true : false], Response::HTTP_OK);
+        } catch(\Exception $e) {
+            return $this->errorResponse(['Error' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-        return $this->errorResponse(['Status' => 'Not Found'], Response::HTTP_NOT_FOUND);
     }
 }
