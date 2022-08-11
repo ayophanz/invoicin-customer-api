@@ -32,7 +32,7 @@ class CustomerAddress extends Model
      *
      * @return BelongsTo The attached address type.
      */
-    public function customerAddressType() : BelongsTo
+    public function addressType() : BelongsTo
     {
         return $this->belongsTo(CustomerAddressType::class);
     }
