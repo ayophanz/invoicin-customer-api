@@ -86,9 +86,16 @@ class CustomerSettingController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function show($id)
+    public function show(Request $request, $id)
     {
-        //
+        try {
+            $customer = Customer::where('id', $id)->where('organization_id', $this->auth->organization_id)->first();
+            $setting  = $customer->settings()->where('key', $request->key)->first();
+
+            return $this->successResponse($this->transformer->transform($setting), Response::HTTP_OK);
+        } catch(\Exception $e) {
+            return $this->errorResponse(['Error' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
     /**
